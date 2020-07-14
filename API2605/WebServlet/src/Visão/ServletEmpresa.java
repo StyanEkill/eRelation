@@ -203,7 +203,7 @@ public class ServletEmpresa extends HttpServlet {
 					result.put("cod", 100);
 				}
 				break;
-			/*------------------------------------------------------------------ SOCIO/SOLICITA«√O ------------------------------------------------------------*/
+			/*------------------------------------------------------------------ SOCIO/SOLICITA√á√ÉO ------------------------------------------------------------*/
 			// ENVIAR SOLICITACAO
 			case 7:
 				if (parameters.has("cnpj_dest") && parameters.has("cnpj_origem")) {
@@ -217,11 +217,11 @@ public class ServletEmpresa extends HttpServlet {
 
 						String empresa = empDAO.read(parameters.getString("cnpj_origem")).getNomeEmpresa();
 						ce.setMensagem("A empresa " + empresa
-								+ " deseja fechar uma nova parceria com vocÍ. V· para as solicitaÁıes.");
+								+ " deseja fechar uma nova parceria com voc√™. V√° para as solicita√ß√µes.");
 						ce.setDestino(false);
 						ceDAO.create(ce);
 
-						cs = new ConnectionSocket("SOLICITA«√O", "caixa_entrada", ce);
+						cs = new ConnectionSocket("SOLICITA√á√ÉO", "caixa_entrada", ce);
 						csDAO.enviaCaixaEntrada(ce, cs);
 					} else {
 						result.put("cod", 102);
@@ -259,14 +259,14 @@ public class ServletEmpresa extends HttpServlet {
 					if (socDAO.update(soc.getCnpjOrigem(), soc.getCnpjDest())) {
 						result.put("cod", 101);
 						String empresa = empDAO.read(parameters.getString("cnpj_origem")).getNomeEmpresa();
-						ce.setMensagem("A empresa " + empresa + " aceitou sua solicitaÁ„o. Agora vocÍs s„o parceiros.");
+						ce.setMensagem("A empresa " + empresa + " aceitou sua solicita√ß√£o. Agora voc√™s s√£o parceiros.");
 
-						ce.setCnpjDest(soc.getCnpjOrigem());
-						ce.setCnpjOrigem(soc.getCnpjDest());
+						ce.setCnpjDest(soc.getCnpjDest());
+						ce.setCnpjOrigem(soc.getCnpjOrigem());
 						ce.setDestino(false);
 						ceDAO.create(ce);
 
-						cs = new ConnectionSocket("SOLICITA«√O", "caixa_entrada", ce);
+						cs = new ConnectionSocket("SOLICITA√á√ÉO", "caixa_entrada", ce);
 						csDAO.enviaCaixaEntrada(ce, cs);
 					} else {
 						result.put("cod", 102);
@@ -290,7 +290,7 @@ public class ServletEmpresa extends HttpServlet {
 
 						String empresa = empDAO.read(parameters.getString("cnpj_origem")).getNomeEmpresa();
 
-						cs = new ConnectionSocket("SOLICITA«√O", "solicitacao", ce);
+						cs = new ConnectionSocket("SOLICITA√á√ÉO", "solicitacao", ce);
 						if (socio.getDataContratacao() != null) {
 							ce.setMensagem("A empresa " + empresa
 									+ " quebrou o quebrou o vinculo que havia com a sua empresa");
@@ -365,7 +365,7 @@ public class ServletEmpresa extends HttpServlet {
 						String empresa = empDAO.read(parameters.getString("cnpj_origem")).getNomeEmpresa();
 
 						ce.setMensagem(
-								"A empresa " + empresa + " deseja marcar um evento com vocÍ. V· para a sua genda.");
+								"A empresa " + empresa + " deseja marcar um evento com voc√™. V√° para a sua genda.");
 						ce.setDestino(false);
 						ceDAO.create(ce);
 
@@ -392,7 +392,7 @@ public class ServletEmpresa extends HttpServlet {
 						ce.setCnpjDest(agd.getCnpjOrigem());
 
 						String empresa = empDAO.read(ce.getCnpjOrigem()).getNomeEmpresa();
-						ce.setMensagem("A empresa " + empresa + " confirmou sua presenÁa no evento " + agd.getTitulo());
+						ce.setMensagem("A empresa " + empresa + " confirmou sua presen√ßa no evento " + agd.getTitulo());
 						ce.setDestino(false);
 
 						cs = new ConnectionSocket("AGENDA", "agenda", ce);
@@ -431,7 +431,7 @@ public class ServletEmpresa extends HttpServlet {
 						} else if (!agd.getCnpjOrigem().equals(parameters.getString("cnpj"))) {
 							ce.setCnpjOrigem(agd.getCnpjDest());
 							ce.setCnpjDest(agd.getCnpjOrigem());
-							ce.setMensagem("A empresa " + empresa + " n„o poder· mais comparecer ao evento: "
+							ce.setMensagem("A empresa " + empresa + " n√£o poder√° mais comparecer ao evento: "
 									+ agd.getTitulo() + ".");
 							ce.setDestino(false);
 							ceDAO.create(ce);
@@ -518,7 +518,7 @@ public class ServletEmpresa extends HttpServlet {
 					result.put("cod", 100);
 				}
 				break;
-			// VERIFICA SE H¡ ALGUMA MENSAGEM NA CAIXA DE ENTRADA N√O LIDA
+			// VERIFICA SE H√Å ALGUMA MENSAGEM NA CAIXA DE ENTRADA N√ÉO LIDA
 			case 18:
 				if (parameters.has("cnpj")) {
 					result.put("verify", ceDAO.read(parameters.getString("cnpj")));
