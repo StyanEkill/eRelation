@@ -1,0 +1,174 @@
+package view;
+
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.PrintWriter;
+import java.sql.SQLException;
+import java.util.Base64;
+import java.util.List;
+
+import javax.imageio.ImageIO;
+import javax.servlet.ServletException;
+import javax.servlet.ServletOutputStream;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import control.ProdutosDAO;
+import model.Produtos;
+
+@WebServlet("/svProdutos")
+public class ServletProdutos extends HttpServlet {
+	private static final long serialVersionUID = 1L;
+
+	private Produtos prod;
+
+	private ProdutosDAO prodDAO;
+
+	protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+		int acao = Integer.parseInt(req.getParameter("acao"));
+		JSONObject parameters = new JSONObject(req.getParameter("valores"));
+
+		PrintWriter out = resp.getWriter();
+		JSONObject result = new JSONObject();
+		JSONArray resultArray = new JSONArray();
+
+		init();
+		System.out.println("svProdutos");
+		try {
+			switch (acao) {
+			// CADASTRA PRODUTO
+			case 1:
+				if (parameters.has("cnpj") && parameters.has("nome") && parameters.has("preco")
+						&& parameters.has("imagem") && parameters.has("descricao")) {
+					prod.setCnpj(parameters.getString("cnpj"));
+					prod.setNome(parameters.getString("nome"));
+					prod.setPreco(parameters.getFloat("preco"));
+					prod.setDescricao(parameters.getString("descricao"));
+					if (parameters.getString("imagem") != null) {
+						byte[] decodedBytes = Base64.getDecoder()
+								.decode(parameters.getString("imagem").replace(" ", "+"));
+						InputStream inp = new ByteArrayInputStream(decodedBytes);
+						prod.setImagem(inp);
+					}
+					if (prodDAO.create(prod)) {
+						result.put("cod", 101);
+					} else {
+						result.put("cod", 102);
+					}
+				} else {
+					result.put("cod", 100);
+				}
+				break;
+			// UPDATE PRODUTO
+			case 2:
+				if (parameters.has("id") && parameters.has("nome") && parameters.has("preco")
+						&& parameters.has("descricao")) {
+					prod.setIdProdutos(parameters.getInt("id"));
+					prod.setNome(parameters.getString("nome"));
+					prod.setDescricao(parameters.getString("descricao"));
+					prod.setPreco(parameters.getFloat("preco"));
+					prod.setExcluido(false);
+
+					if (parameters.has("imagem")) {
+						byte[] decodedBytes = Base64.getDecoder()
+								.decode(parameters.getString("imagem").replace(" ", "+"));
+						InputStream inp = new ByteArrayInputStream(decodedBytes);
+						prod.setImagem(inp);
+					} else if (prodDAO.read(parameters.getInt("id")).getImagem() != null)
+						prod.setImagem(prodDAO.read(parameters.getInt("id")).getImagem());
+					else
+						prod.setImagem(null);
+
+					if (prodDAO.update(prod)) {
+						result.put("cod", 101);
+					} else {
+						result.put("cod", 102);
+					}
+				} else {
+					result.put("cod", 100);
+				}
+				break;
+			// DELETA PRODUTO
+			case 3:
+				if (parameters.has("id")) {
+					prod = prodDAO.read(parameters.getInt("id"));
+					prod.setExcluido(true);
+
+					if (prodDAO.update(prod)) {
+						result.put("cod", 101);
+					} else {
+						result.put("cod", 102);
+					}
+				} else {
+					result.put("cod", 100);
+				}
+				break;
+			// LISTA PRODUTOS
+			case 4:
+				List<Produtos> lProd = prodDAO.list(parameters.getString("cnpj"));
+				for (Produtos produtos : lProd) {
+					JSONObject ob = new JSONObject();
+					ob.put("id", produtos.getIdProdutos());
+					ob.put("nome", produtos.getNome());
+					ob.put("descricao", produtos.getDescricao());
+					ob.put("preco", produtos.getPreco());
+					ob.put("excluido", produtos.getExcluido());
+					resultArray.put(ob);
+				}
+				break;
+
+			default:
+				result.put("cod", 4000);
+				break;
+			}
+
+		} catch (JSONException | SQLException e) {
+			e.printStackTrace();
+			result.put("cod", 103);
+		}
+		if (resultArray.isEmpty() && !result.isEmpty())
+			out.write(result.toString());
+		else if (!resultArray.isEmpty())
+			out.write(resultArray.toString());
+	}
+
+	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+		BufferedImage buffer;
+		int cod = Integer.parseInt(req.getParameter("codigo"));
+		prod = new Produtos();
+		prodDAO = new ProdutosDAO();
+		prod.setIdProdutos(cod);
+		try {
+			Produtos produtos = prodDAO.read(prod.getIdProdutos());
+
+			if (produtos.getImagem() != null) {
+				buffer = ImageIO.read(produtos.getImagem());
+			} else {
+				buffer = ImageIO
+						.read(new File(req.getServletContext().getRealPath("img") + File.separator + "produtos.jpg"));
+			}
+			ByteArrayOutputStream b = new ByteArrayOutputStream();
+			ImageIO.write(buffer, "jpg", b);
+
+			byte[] imgArray = b.toByteArray();
+			ServletOutputStream sos = resp.getOutputStream();
+			sos.write(imgArray);
+		} catch (SQLException e) {
+		}
+	}
+
+	public void init() {
+		prod = new Produtos();
+		prodDAO = new ProdutosDAO();
+	}
+}

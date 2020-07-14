@@ -1,0 +1,180 @@
+$(document).ready(function(){
+	var url = "http://"+urlLocation.host+"/"+urlLocation.pathname.split("/")[1]+"/servlet";
+	
+	$.ajax({
+		url: url,
+		type:'POST',
+		data:{action:25},
+		success: function(request){
+				/* AÇÕES
+				* Nº 17 - LISTA EMPRESA
+				* Nº 18 - LISTA PRODUTO *OBS.: ESSA AÇÃO RETORNA TODOS OS PRODUTOS DA EMPRESA, SÓ É PRECISO DE CINCO
+				*/
+
+				var system = JSON.parse(request);
+				var user = system.user;
+				var ip = system.ip;
+				var port = system.port;
+				
+				var data = {};
+				data.limit = 0;
+
+				scrollEmpresa();
+				
+				$('select[name="type"]').change(function() {
+					data.action = 5;
+					var save = data.limit;
+						if(this.value != 'all'){
+							data.type = this.value;
+							data.limit = 0;
+							consultaEmpresa("type",save);
+				    	} else {
+							delete data["type"]
+							data.limit = 0;
+							consultaEmpresa("type",save);
+				    	}
+					}
+				);
+				
+				$(".search input").keyup(function(){
+					var save = data.limit;
+					data.limit = 0;
+					data.action = 5;
+					data.search = $(this).val();
+					if($(this).val() != ""){
+						consultaEmpresa("search",save);
+					} else {
+						delete data["search"]
+						data.limit = 0;
+						consultaEmpresa("search",save);
+					}
+				});
+			
+				var top = $('.top-feed').offset().top;
+				var altura = parseInt(window.getComputedStyle(document.querySelector('.top-feed')).height);
+				var position = top + altura;
+				
+			    $(window).scroll(function() {
+			        if($(this).scrollTop() >= position) {
+			        	$('.top-feed').css({'position': 'fixed', 'top':'0', 'z-index':'1', 'left': '0','right':'0','box-shadow': '0px 10px 30px 0px rgba(160, 160, 160, 0.3)'});
+			        } else if($(this).scrollTop() < position){
+			        	$('.top-feed').removeAttr("style");
+			        }
+
+			    	// IF VERIFICA SE O SCROLL ESTA NO FINAL DA PAGINA
+			        if($(this).scrollTop() + $(this).height() >= $(document).height()-300) {
+				        // CHAMA A FUNCAO QUE CONTEM O AJAX QUE ENVIA UM METODO POST PARA O WEBSERVLET
+						scrollEmpresa();
+			        }
+			   });
+			    var cardBody
+			    function criaCard(emp){
+			    	for(var cont = 0; cont < emp.length; cont++){
+				    	var card = $("<div/>",{ class:'card'});
+				    	cardBody = $("<div/>",{ class:'card-body'});
+				    	var tipo = $("<div/>",{ class:'tipo '+emp[cont].tipo.toLowerCase()});
+				    	tipo.text(emp[cont].tipo.toUpperCase());
+			
+				    	var topBody = $("<div/>",{ class:'top-body'});
+				    	var h4 = $("<h4/>",{ class:'card-title'});
+				    	h4.text(emp[cont].empresa);
+				    	var option = $("<div/>",{ class:'options'});
+				    	var imgEmp = $("<div/>",{ class:'img-square-wrapper', style:"background-image: url('http://"+ip+":"+port+"/WebServlet/svEmpresa?cnpj="+emp[cont].cnpj+"');"});
+				    	
+				    	var form = $("<form/>",{ method:'POST', action:'perfilempresa.jsp'});
+				    	var input = $("<input/>",{ method:'POST', type:'hidden', name: 'cnpj', value:emp[cont].cnpj});
+				    	var i = $("<i/>",{ class:'fas fa-building', 'aria-hidden':'true'});
+				    	var bt = $("<button/>",{ class:'perfil'});
+						option.append(form);
+						form.append(input, bt);
+						bt.append(i);
+						
+				    	form = $("<form/>",{ method:'POST', action:'perfilempresa.jsp?ac=1'});
+				    	input = $("<input/>",{ method:'POST', type:'hidden', name: 'cnpj', value:emp[cont].cnpj});
+				    	i = $("<i/>",{ class:'fas fa-calendar-day', 'aria-hidden':'true'});
+				    	bt = $("<button/>",{ class:'agenda'});
+						option.append(form);
+						form.append(input, bt);
+						bt.append(i);
+			
+				    	form = $("<form/>",{ method:'POST', action:'mensagem.jsp'});
+				    	input = $("<input/>",{ method:'POST', type:'hidden', name: 'cnpjDest', value:emp[cont].cnpj});
+				    	i = $("<i/>",{ class:'fas fa-comment-alt', 'aria-hidden':'true'});
+				    	bt = $("<button/>",{class:'mensagem'});
+						option.append(form);
+						form.append(input, bt);
+						bt.append(i);
+						
+				    	var  p = $("<p/>",{ class:'card-text'});
+				    	if("descricao" in emp[cont]){
+				    		p.text(emp[cont].descricao);
+			    		}else{
+					    	p.text("Essa empresa não possui descrição");
+				    	}
+				    		
+				    	$('#feed').append(card);
+				    	card.append(imgEmp,cardBody, tipo);
+				    	topBody.append(h4, option);
+
+			    		var prod = [];
+				    	var produto = $.ajax({url: url, type:'POST', data: {'action': 16, 'cnpj': emp[cont].cnpj}, async:false}).responseText;
+				    	if(produto != ""){
+				    		prod = JSON.parse(produto);
+				    	}
+						var group = $("<div/>",{ class:'carousel-product'});
+
+				    	var limite = 0;
+				    	if(prod.length == 0){
+				    		group.text("Sem produtos cadastrados.");
+				    	} else if(prod.length <= 5){
+							limite = prod.length;
+						} else {
+							limite = 5;
+						}
+
+				    	for(var j = 0; j < limite; j++){
+					    	var product = $("<div/>",{ class:'product'});
+					    	var imgProd = $("<div/>",{ class:'img-product', style:"background-image: url('http://"+ip+":"+port+"/WebServlet/svProdutos?codigo="+prod[j].id+"');"});
+					    	var nome = $("<span />",{ class:'product-name'});
+					    	nome.text(prod[j].nome);
+					    	group.append(product);
+					    	product.append(imgProd, nome);
+				    	}
+			    		cardBody.append(topBody, p, group);
+			    	}
+			    }
+			    
+			    function consultaEmpresa(objeto, save){
+					 $.ajax({
+							url: url,
+							type:'POST',
+							data: data,
+							contentType: 'application/x-www-form-urlencoded; charset=ISO-8859-1',
+							success: function(request) {
+								$("#feed .card").remove();
+								criaCard(JSON.parse(request));
+								data.limit += 5;
+							},
+							error:function(){
+								if(objeto != null){
+									delete data[objeto]
+								}
+								data.limit = save;
+							}
+						}
+					 );
+			    }
+			    function scrollEmpresa(){
+			    	data.action = 5;
+			    	var request = JSON.parse($.ajax({url: url, type:'POST', data:data, async:false}).responseText);
+			        if(request.length > 0){
+						criaCard(request);
+						data.limit += 5;
+			        }
+			    }
+			}
+		
+		}
+	);
+	
+});

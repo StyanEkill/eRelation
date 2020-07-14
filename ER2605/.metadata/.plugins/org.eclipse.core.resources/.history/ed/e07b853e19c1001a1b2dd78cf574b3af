@@ -1,0 +1,222 @@
+$(window).ready(function(){
+	var url = "http://"+urlLocation.host+"/"+urlLocation.pathname.split("/")[1]+"/servlet";
+    $(".add").click(function () {
+    	criaModal();
+
+        $("#form-md").submit(function(e){
+            e.preventDefault();
+            
+            var inputFile = $(this).find("input[name='imagem']");
+            
+        	var fd = new FormData();
+            fd.append("imagem", inputFile.prop('files')[0]);
+			console.log(fd.get("imagem"));
+			
+        	if($(this).valid()){
+	    		var nome = $(this).find("input[name='nome']").val();
+				var descricao = $(this).find("textarea[name='descricao']").val();
+				var preco = $(this).find("input[name='preco']").val();
+				
+        		$.ajax({
+        			url: url+"?action=13&nome="+encodeISO(nome)+"&descricao="+encodeISO(descricao)+"&preco="+encodeISO(preco),
+        			method:"POST",
+        			data: fd,
+        	        contentType: false,
+        	        processData: false,
+        			success: function(data){
+	              		var json = JSON.parse(data);
+	              		if(json.cod == 101){
+                          $(".modal").remove();
+  	                    	alert('1001','Erro ao carregar pagina');
+	              		}
+	              	},
+	                error: function (exr, sender) {
+	                    alert('1001','Erro ao carregar pagina');
+	            	}
+            	});
+        	}
+		});
+    });
+    $(".edit").click(function () {
+    	criaModal();
+
+        var produto =  $(this).parent(".produtos");
+    	var modal = $(".modal");
+
+		var nome = modal.find("input[name='nome']");
+		var descricao = modal.find("textarea[name='descricao']");
+		var preco = modal.find("input[name='preco']");
+		
+		nome.val(produto.find(".nome-prod").text());
+		descricao.val(produto.find(".descricao-prod").text());
+		preco.val(produto.find(".preco-prod").text());
+
+        var src  = produto.find(".prod-image").attr("src");
+    	$("#img-select").attr("src", src);
+        var id = produto.attr("data-id");
+        
+	    $("#form-md").submit(function(e){
+	        e.preventDefault();
+	        
+            var inputFile = $(this).find("input[name='imagem']");
+            
+        	var fd = new FormData();
+        	fd.append('imagem', inputFile.prop('files')[0]);
+
+	    	if($(this).valid()){
+
+	    		$.ajax({
+	    			url: url+"?action=14&id="+id+"&nome="+encodeISO(nome.val())+"&descricao="+encodeISO(descricao.val())+"&preco="+ encodeISO(preco.val()),
+	    			method:"POST",
+	    			data: fd,
+        	        contentType: false,
+        	        processData: false,
+        	        success: function(data){
+	              		var json = JSON.parse(data);
+	              		if(json.cod == 101){
+	                    	modal.remove();
+	                    	$($(produto).find(".nome-prod")).text(nome.val());
+	                    	$(produto).find(".descricao-prod").text(descricao.val());
+	                    	$(produto).find(".preco-prod").text(preco.val());
+	                    	produto.find(".prod-image").attr("src", src.split("&timestamp")[0]+"&timestamp="+new Date().getTime());
+	              		}
+	                    alert(json.cod);
+	              	},
+	                error: function (exr, sender) {
+	                    alert('1001','Erro ao carregar pagina');
+	            	}
+	        	});
+	    	}
+		});
+    });
+
+    $(".exclui").click(function () {
+        var id = $(this).parent(".produtos").attr("data-id");
+        var produto =  $(this).parent(".produtos");
+        var modal = $("<div />", { class: 'modal' });
+        var mdlContent = $("<div />", { class: 'modal-content md-confirm' });
+        var mdlProdContent = $("<div />", { class: 'form-content' });
+        mdlProdContent.text("Deseja mesmo deletar esse produto?");
+        var mdlFooter = $("<div />", { class: 'modal-footer' });
+        var btConfirm =  $("<button />", { class: 'btn btn-success col-3' });
+        btConfirm.text("Sim");
+        var btCancel =  $("<button />", { class: 'btn btn-danger col-3' });
+        btCancel.text("Não");
+        
+        var i = $("<i />", { class: 'fas fa-minus-circle' });
+        $(btConfirm).click(function(e){
+    		$.ajax({
+    			url: url,
+    			method:"POST",
+    			data: {action: 15, id: id},
+    			success: function(data){
+              		var json = JSON.parse(data);
+                    console.log(json.cod);
+              		if(json.cod == 101){
+                        modal.remove();
+              			produto.remove();
+              		}
+              			
+              	},
+                error: function (exr, sender) {
+                    alert('Erro ao carregar pagina');
+            	}
+        	});
+		});
+        $("body").append(modal);
+        modal.append(mdlContent);
+        mdlContent.append(mdlProdContent, mdlFooter);
+        mdlProdContent.prepend(i);
+        mdlFooter.append(btConfirm, btCancel);
+        
+        window.onclick = function (event) {
+            if (event.target == document.querySelector(".modal"))
+                modal.remove();
+        };
+        $(btCancel).click(function(e){
+            modal.remove();
+        });
+    });
+    
+    function criaModal(){
+    	 var modal = $("<div />", { class: 'modal' });
+         var mdlClose = $("<span />", { class: 'close' });
+         mdlClose.html("&times;");
+         var mdlContent = $("<div />", { class: 'modal-content  md-form' });
+         var mdlProdContent = $("<div />", { class: 'form-content' });
+         var mdlFooter = $("<div />", { class: 'modal-footer' });
+         var btCria =  $("<button />", { class: 'btn btn-danger', form:'form-md' });
+         btCria.text("Cadastrar");
+
+         var form = $("<form />", {action:"",method: "POST",id:'form-md', enctype:"multipart/form-data"});
+         var nome = $("<input />", { placeholder: 'Titulo', required: true, name: "nome", type: 'text' });
+         var desc = $("<textarea />", { placeholder: 'Descrição', required: true, name: "descricao"});
+         var preco = $("<input />", { placeholder: 'Valor', name: "preco", required: true, type: 'number' });
+         var divImg = $("<div/>",{ class:'img-select'});
+         var img = $("<img/>",{name: 'img', id:'img-select',class:'rounded-circle', height:"100px", width:"100px"});
+         var i = $("<i/>",{class:'fas fa-pencil-alt'});
+         var label = $("<label />", {  name: "imagem", for: 'imagem', id:'lb-image' });
+         var image = $("<input />", {  name: "imagem", id: "imagem", type: 'file', accept:".jpg"  });
+         mdlProdContent.append(form);
+         label.append(i);
+         divImg.append(img,label);
+         form.append(divImg, nome,desc,preco,image);
+
+   		image.change(function() {
+   			if (this.files && this.files[0]) {
+   				img.attr('src', URL.createObjectURL(this.files[0]));
+   			}
+   		});
+         
+     	$(form).validate({
+     		errorPlacement : function(label, element) {
+     			label.addClass('spanError');
+     			label.insertAfter(element);
+     		},
+     		wrapper : 'em',
+     		rules : {
+ 				nome : {
+     				required : true,
+     				maxlength : 50,
+     				minlength : 2
+     			},
+     			descricao : {
+     				required : true,
+     				maxlength : 300,
+     				minlength : 2
+     			},
+     			preco : {
+     				required : true
+     			}
+     		},
+     		messages : {
+     			nome : {
+     				required : "*Obrigatório"
+         		},
+         		descricao : {
+         			required : "*Obrigatório"
+         		},
+         		preco : {
+         			required : "*Obrigatório"
+         		}
+     		}
+     	});
+
+
+         $("body").append(modal);
+         modal.append(mdlContent);
+         mdlContent.append(mdlClose, mdlProdContent, mdlFooter);
+         mdlFooter.append(btCria);
+
+         $(".modal .close").click(function () {
+             modal.remove();
+         });
+         window.onclick = function (event) {
+             if (event.target == document.querySelector(".modal"))
+                 modal.remove();
+         };
+    }
+    function encodeISO(string){
+    	return unescape(encodeURIComponent(string));
+    }
+});

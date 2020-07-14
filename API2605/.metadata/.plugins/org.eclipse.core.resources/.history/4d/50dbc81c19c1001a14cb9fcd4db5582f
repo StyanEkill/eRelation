@@ -1,0 +1,144 @@
+package view;
+
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+import javax.websocket.server.HandshakeRequest;
+import javax.websocket.server.ServerEndpoint;
+
+import org.json.JSONObject;
+
+import control.EmpresasDAO;
+import model.Empresa;
+
+import javax.websocket.OnOpen;
+import javax.websocket.EndpointConfig;
+import javax.websocket.OnClose;
+import javax.websocket.OnMessage;
+import javax.websocket.OnError;
+import javax.websocket.Session;
+
+@ServerEndpoint(value = "/socket", configurator = CustomConfigurator.class)
+public class Socket {
+	private static final List<Session> peers = new ArrayList<>();
+	private JSONObject json;
+	private JSONObject jb;
+	private Empresa emp;
+	private EmpresasDAO empDAO;
+	private String userTo;
+
+	@OnOpen
+	public void start(Session session, EndpointConfig conf) throws Exception {
+		HandshakeRequest req = (HandshakeRequest) conf.getUserProperties().get("handshakereq");
+
+		session.getUserProperties().put("userTo", req.getParameterMap().get("user").get(0));
+		peers.add(session);
+		for (Session s : peers) {
+			json = new JSONObject();
+			json.put("action", "send_status");
+			json.put("cnpj_origem", req.getParameterMap().get("user").get(0));
+			json.put("message", "Online");
+			s.getBasicRemote().sendText(json.toString());
+		}
+	}
+
+	@OnClose
+	public void end(Session session) throws IOException {
+		peers.remove(session);
+		for (Session s : peers) {
+			if (s.isOpen()) {
+				json = new JSONObject();
+				json.put("action", "send_status");
+				json.put("userTo", (String) session.getUserProperties().get("userTo"));
+				json.put("message", "Online");
+				session.getBasicRemote().sendText(json.toString());
+			}
+		}
+	}
+
+	@OnMessage
+	public void receiveMessage(String message, Session sessionTo) throws Exception {
+		jb = new JSONObject(message);
+		System.out.println("MSG: "+message);
+		json = new JSONObject();
+
+		userTo = (String) sessionTo.getUserProperties().get("userTo");
+		empDAO = new EmpresasDAO();
+		switch (jb.getString("action")) {
+		
+		// Registra e envia mensagens ao destinatario
+		case "submit_message":
+			Date d = new Date();
+			json.put("action", "recive_message");
+			json.put("message", jb.getString("message"));
+			json.put("horario", new SimpleDateFormat("HH:mm").format(d));
+			json.put("data", new SimpleDateFormat("dd/MM/yyyy").format(d));
+			emp = empDAO.read(jb.getString("cnpj_origem")); 
+			json.put("empresa", emp.getNomeEmpresa());
+			json.put("cnpj_origem", userTo);
+			
+			for (Session session : peers) {
+				String userFrom = (String) session.getUserProperties().get("userTo");
+				
+				if (userFrom.equals(jb.getString("cnpj_dest"))) {
+					json.put("cnpj_dest", userFrom);
+					session.getBasicRemote().sendText(json.toString());
+				} else if(userFrom.equals(userTo) && session != sessionTo) {
+					json.put("cnpj_dest", userFrom);
+					session.getBasicRemote().sendText(json.toString());
+				}
+			}
+			break;
+			
+		//BUSCA POR STATUS
+		case "search_status":
+			json.put("action", "send_status");
+			json.put("cnpj_origem",jb.getString("userFrom"));
+			for (Session session : peers) {
+				String userFrom = (String) session.getUserProperties().get("userTo");
+				if (userFrom.equals(jb.getString("userFrom"))) {
+					json.put("message", "online");
+					break;
+				} else {
+					json.put("message", "offline");
+				}
+			}
+			sessionTo.getBasicRemote().sendText(json.toString());
+			break;
+		//BUSCA POR STATUS
+		case "send_view":
+			json.put("action", "recive_view");
+			json.put("cnpj_origem", jb.getString("cnpj_origem"));
+			for (Session session : peers) {
+				String userFrom = (String) session.getUserProperties().get("userTo");
+				if (userFrom.equals(jb.getString("userFrom"))) {
+					session.getBasicRemote().sendText(json.toString());
+				}
+			}
+			break;
+			
+		//ENVIA CAIXA DE ENTRADA
+		case "caixa_entrada":
+			System.out.println("caixa entrda");
+			for (Session session : peers) {
+				String userFrom = (String) session.getUserProperties().get("userTo");
+				if (userFrom.equals(jb.getString("userFrom"))) {
+					session.getBasicRemote().sendText(jb.toString());
+				}
+			}
+			break;
+		default:
+			System.out.println("Aleatorio" + message);
+			break;
+		}
+	}
+
+	@OnError
+	public void handleError(Throwable t) {
+		t.printStackTrace();
+		System.out.println(t);
+	}
+}

@@ -1,0 +1,68 @@
+<%@page import="org.json.JSONString"%>
+<%@page import="org.json.JSONStringer"%>
+<%@page import="org.json.JSONArray"%>
+<%@page import="model.Conexao"%>
+<%@page import="org.json.JSONObject"%>
+<%@ page language="java" contentType="text/html; charset=ISO-8859-1"
+    pageEncoding="ISO-8859-1"%>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="ISO-8859-1">
+<title>Insert title here</title>
+</head>
+<body>
+<%
+	HttpSession hs = request.getSession();
+	JSONObject obj = new JSONObject();
+	obj.put("cnpj_origem", hs.getAttribute("cnpj"));
+	Conexao conection = new Conexao();
+	
+	String result = conection.conexao(obj,12,"svEmpresa");
+	System.out.println(result);
+	if(!result.isEmpty()){
+		JSONArray arr = new JSONArray(result);
+	%>
+	<div id="mydiv">
+		<%
+			for (int i = 0; i < arr.length(); i++) {
+				JSONObject ob = arr.getJSONObject(i);
+				obj = new JSONObject();
+				if(ob.getString("cnpj_origem").equals(hs.getAttribute("cnpj"))){
+					//ENVIADAS POR MIM
+					
+					obj.put("cnpj", ob.getString("cnpj_dest"));
+					result = conection.conexao(obj, 3, "svEmpresa");
+					JSONObject objs = new JSONObject(result.replace("[","").replace("]",""));
+					out.print("<form method=\"POST\" action=\"servlet\">");
+					out.print("<input name='action' value='7' type='hidden'>");
+					out.print("<input name='cnpjDest' value='"+ob.getString("cnpj_dest")+"' type='hidden'>");
+					out.print("Enviada: "+objs.getString("empresa")+"<br><button>Cancelar solicitacao</button>");
+					out.print("</form>");
+					
+				} else {
+					// Recebidas
+					
+					obj.put("cnpj", ob.getString("cnpj_origem"));
+					result = conection.conexao(obj, 3, "svEmpresa");
+
+					JSONObject objs = new JSONObject(result.replace("[","").replace("]",""));
+					out.print("Recebida: "+objs.getString("empresa"));
+					out.print("<form method=\"POST\" action=\"servlet\">");
+					out.print("<input name='action' value='8' type='hidden'>");
+					out.print("<input name='cnpjDest' value='"+ob.getString("cnpj_origem")+"' type='hidden'>");
+					out.print("<button>Aceitar solicitacao</button>");
+					out.print("</form>");
+					out.print("<form method=\"POST\" action=\"servlet\">");
+					out.print("<input name='action' value='7' type='hidden'>");
+					out.print("<input name='cnpjDest' value='"+ob.getString("cnpj_origem")+"' type='hidden'>");
+					out.print("<button>Recusar solicitacao</button>");
+					out.print("</form>");
+					
+				}
+			}
+		}
+		%>
+	</div>
+</body>
+</html>

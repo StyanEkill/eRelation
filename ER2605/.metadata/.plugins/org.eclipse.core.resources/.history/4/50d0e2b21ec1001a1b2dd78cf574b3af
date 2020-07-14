@@ -1,0 +1,365 @@
+package view;
+
+import java.awt.image.*;
+import java.io.*;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Base64;
+
+import javax.imageio.ImageIO;
+import javax.servlet.ServletException;
+import javax.servlet.annotation.MultipartConfig;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+import javax.servlet.http.Part;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import model.Conexao;
+
+@WebServlet("/servlet")
+@MultipartConfig(maxFileSize = 16177215)
+public class Servlet extends HttpServlet {
+	private static final long serialVersionUID = 1L;
+
+	private Conexao conection;
+	private String result;
+	private JSONObject obj, ob;
+
+	protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+		int acao = Integer.parseInt(req.getParameter("action"));
+
+		PrintWriter out = resp.getWriter();
+		HttpSession hs = req.getSession();
+
+		conection = new Conexao();
+		obj = new JSONObject();
+
+		switch (acao) {
+		// CADASTRA EMPRESA
+		case 1:
+			obj.put("cnpj", req.getParameter("cnpj"));
+			obj.put("endereco", req.getParameter("rua") + ", " + req.getParameter("bairro") + " - " + req.getParameter("numero") + ", " + req.getParameter("cidade") + " - " + req.getParameter("estado") + ", " + req.getParameter("cep"));
+			obj.put("empresa", req.getParameter("nome_empresa"));
+			obj.put("senha", req.getParameter("senha"));
+			obj.put("tipo", req.getParameter("tipo"));
+			obj.put("telefone", req.getParameter("telefone"));
+			obj.put("descricao", req.getParameter("descricao"));
+			obj.put("foto_perfil", encodeImage(req.getPart("foto")));
+			result = conection.conexao(obj, 2, "svEmpresa");
+
+			verificaCod(result, "login.jsp", req, resp);
+			break;
+		// LOGIN 
+		case 2:
+			obj.put("cnpj", req.getParameter("cnpj"));
+			obj.put("senha", req.getParameter("senha"));
+
+			result = conection.conexao(obj, 1, "svEmpresa");
+
+			ob = new JSONObject(result);
+			if (ob.has("cnpj")) {
+				hs.setAttribute("cnpj", ob.getString("cnpj"));
+				resp.sendRedirect("home.jsp?e=" + 120);
+			} else {
+				resp.sendRedirect("login.jsp?e=" + new JSONObject(result).getInt("cod"));
+			}
+			break;
+		// LOGOUT
+		case 3:
+			hs.removeAttribute("cnpj");
+			resp.sendRedirect("index.jsp?e=" + 25);
+			break;
+		// UPDATE EMPRESA
+		case 4:
+			obj.put("cnpj", hs.getAttribute("cnpj"));
+			obj.put("endereco", req.getParameter("rua") + ", " + req.getParameter("bairro") + " - " + req.getParameter("numero") + ", " + req.getParameter("cidade") + " - " + req.getParameter("estado") + ", " + req.getParameter("cep"));
+			obj.put("empresa", req.getParameter("nome_empresa"));
+			obj.put("tipo", req.getParameter("tipo"));
+			obj.put("telefone", req.getParameter("telefone"));
+			obj.put("descricao", req.getParameter("descricao"));
+			obj.put("foto_perfil", encodeImage(req.getPart("foto")));
+
+			result = conection.conexao(obj, 4, "svEmpresa");
+			out.write(result);
+			break;
+
+		// LISTA EMPRESAS
+		case 5:
+			obj.put("cnpj", hs.getAttribute("cnpj"));
+			obj.put("limit", Integer.parseInt(req.getParameter("limit")));
+			obj.put("search", req.getParameter("search"));
+			obj.put("type", req.getParameter("type"));
+
+			result = conection.conexao(obj, 5, "svEmpresa");
+
+			out.write(encodeISO(result));
+			break;
+
+		// ENVIA SOLICITAÇÃO
+		case 6:
+			obj.put("cnpj_origem", hs.getAttribute("cnpj"));
+			obj.put("cnpj_dest", req.getParameter("cnpjDest"));
+
+			result = conection.conexao(obj, 7, "svEmpresa");
+
+			verificaCod(result, "solicitacoes.jsp", req, resp);
+			break;
+			
+		// RECUSA OU CANCELA SOLICITAÇÃO
+		case 7:
+			obj.put("cnpj_origem", hs.getAttribute("cnpj"));
+			obj.put("cnpj_dest", req.getParameter("cnpjDest"));
+
+			result = conection.conexao(obj, 10, "svEmpresa");
+
+			verificaCod(result, "solicitacoes.jsp", req, resp);
+			break;
+			
+		// ACEITA SOLICITAÇÃO
+		case 8:
+			obj.put("cnpj_origem", hs.getAttribute("cnpj"));
+			obj.put("cnpj_dest", req.getParameter("cnpjDest"));
+
+			result = conection.conexao(obj, 9, "svEmpresa");
+
+			verificaCod(result, "solicitacoes.jsp", req, resp);
+			break;
+
+		// AGENDA REUNIÃO
+		case 9:
+			obj.put("cnpj_origem", hs.getAttribute("cnpj"));
+			obj.put("cnpj_dest", req.getParameter("cnpjDest"));
+			obj.put("titulo", req.getParameter("titulo"));
+			obj.put("horario", req.getParameter("horario"));
+			obj.put("data", req.getParameter("data"));
+			obj.put("descricao", req.getParameter("descricao"));
+
+			result = conection.conexao(obj, 13, "svEmpresa");
+			out.print(result);
+			break;
+			
+		// UPDATE COMPROMISSO
+		case 10:
+			obj.put("id", req.getParameter("id"));
+			obj.put("titulo", req.getParameter("titulo"));
+			obj.put("descricao", req.getParameter("descricao"));
+			obj.put("data", req.getParameter("data"));
+			obj.put("horario", req.getParameter("horario"));
+			obj.put("data", req.getParameter("data"));
+
+			result = conection.conexao(obj, 16, "svEmpresa");
+
+			out.write(result);
+			break;
+			
+		// CONFIRMA REUNIÃO
+		case 11:
+			obj.put("id", req.getParameter("id"));
+
+			result = conection.conexao(obj, 14, "svEmpresa");
+
+			verificaCod(result, "agenda.jsp", req, resp);
+			break;
+			
+		// CANCELA REUNIÃO
+		case 12:
+			obj.put("cnpj", hs.getAttribute("cnpj"));
+			obj.put("id", req.getParameter("id"));
+
+			result = conection.conexao(obj, 15, "svEmpresa");
+
+			verificaCod(result, "agenda.jsp", req, resp);
+			break;
+
+		// CADASTRA PRODUTO
+		case 13:
+			obj.put("cnpj", hs.getAttribute("cnpj"));
+			obj.put("nome", req.getParameter("nome"));
+			obj.put("preco", Float.parseFloat(req.getParameter("preco")));
+			obj.put("descricao", req.getParameter("descricao"));
+			obj.put("imagem", encodeImage(req.getPart("imagem")));
+			
+			result = conection.conexao(obj, 1, "svProdutos");
+
+			verificaCod(result, "meusprodutos.jsp", req, resp);
+			break;
+			
+		// UPDATE PRODUTO
+		case 14:
+			obj.put("id", Integer.parseInt(req.getParameter("id")));
+			obj.put("nome", req.getParameter("nome"));
+			obj.put("preco", Float.parseFloat(req.getParameter("preco")));
+			obj.put("descricao", req.getParameter("descricao"));
+			obj.put("imagem", encodeImage(req.getPart("imagem")));
+
+			result = conection.conexao(obj, 2, "svProdutos");
+			out.write(result);
+			break;
+			
+		// DELETA PRODUTO
+		case 15:
+			obj.put("id", req.getParameter("id"));
+
+			result = conection.conexao(obj, 3, "svProdutos");
+			out.write(result);
+			break;
+
+		// LISTA PRODUTOS
+		case 16:
+			obj.put("cnpj", req.getParameter("cnpj"));
+
+			result = conection.conexao(obj, 4, "svProdutos");
+			out.write(encodeISO(result));
+			break;
+			
+		// CADASTRA PEDIDO
+		case 17:
+			obj.put("cnpj_origem", hs.getAttribute("cnpj"));
+			obj.put("cnpj_dest", req.getParameter("cnpj"));
+			JSONArray arr = new JSONArray();
+
+			String[] id = req.getParameterValues("id");
+			String[] qnt = req.getParameterValues("qnt");
+
+			for (int i = 0; i < qnt.length; i++) {
+				JSONObject ob = new JSONObject();
+				ob.put("id_prod", Integer.parseInt(id[i]));
+				ob.put("qnt", Integer.parseInt(qnt[i]));
+				arr.put(ob);
+			}
+			obj.put("itens", arr);
+
+			result = conection.conexao(obj, 1, "svPedidos");
+
+			out.write(result);
+			break;
+			
+		// UPDATE PEDIDO
+		case 18:
+			obj.put("id", req.getParameter("id"));
+			obj.put("data_prev", req.getParameter("data_prev"));
+			obj.put("status", req.getParameter("status"));
+
+			result = conection.conexao(obj, 2, "svPedidos");
+			verificaCod(result, "pedidos.jsp", req, resp);
+			break;
+
+		// CANCELA PEDIDO
+		case 19:
+			obj.put("id", req.getParameter("id"));
+
+			result = conection.conexao(obj, 3, "svPedidos");
+			verificaCod(result, "pedidos.jsp", req, resp);
+			break;
+
+		// ENVIA MENSAGEM
+		case 20:
+			obj.put("cnpj_origem", hs.getAttribute("cnpj"));
+			obj.put("cnpj_dest", req.getParameter("cnpj_dest"));
+			obj.put("msg", req.getParameter("message"));
+
+			result = conection.conexao(obj, 1, "svMensagem");
+
+			out.write(result);
+			break;
+		// UPDATE MENSAGEM
+		case 21:
+			obj.put("cnpj_origem", hs.getAttribute("cnpj"));
+			obj.put("cnpj_dest", req.getParameter("cnpj_dest"));
+
+			result = conection.conexao(obj, 3, "svMensagem");
+			out.write(result);
+			break;
+		// LISTA MENSAGENS
+		case 22:
+			obj.put("cnpj_origem", hs.getAttribute("cnpj"));
+			obj.put("cnpj_dest", req.getParameter("cnpj_dest"));
+
+			result = conection.conexao(obj, 4, "svMensagem");
+			out.write(encodeISO(result));
+			break;
+
+		// LISTA CONVERSAS
+		case 23:
+			obj.put("cnpj", hs.getAttribute("cnpj"));
+
+			result = conection.conexao(obj, 5, "svMensagem");
+			out.write(result);
+			break;
+		
+		// UPDATE CAIXA ENTRADA
+		case 24:
+			obj.put("id", req.getParameter("id"));
+			result = conection.conexao(obj, 19, "svEmpresa");
+			out.write(result);
+			break;
+
+		// BUSCA CONEXÃO
+		case 25:
+			obj.put("user", hs.getAttribute("cnpj"));
+			obj.put("ip", conection.getIp());
+			obj.put("port", conection.getPort());
+
+			out.write(obj.toString());
+			break;
+		default:
+			resp.sendRedirect("index.jsp?e=" + 500);
+			break;
+		}
+
+	}
+
+	public String encodeImage(Part p) throws IOException {
+		if(p != null) {
+			InputStream inputStream = p.getInputStream();
+	
+			BufferedImage buffer = ImageIO.read(inputStream);
+			ByteArrayOutputStream b = new ByteArrayOutputStream();
+
+			if (buffer != null) {
+				ImageIO.write(buffer, "jpg", b);
+	
+				byte[] imgArray = b.toByteArray();
+				String encodedString = Base64.getEncoder().encodeToString(imgArray);
+	
+				return encodedString;
+			} else {
+				return null;
+			}
+		} else {
+			return null;
+		}
+	}
+
+	public String encodeISO(String string) throws UnsupportedEncodingException {
+		byte[] utf8Bytes = string.getBytes("UTF-8");
+		return new String(utf8Bytes, "ISO-8859-1");
+	}
+
+	public void verificaCod(String json, String urlSuccess, HttpServletRequest req, HttpServletResponse resp)
+			throws ServletException, IOException {
+		String url;
+		JSONObject js = new JSONObject(json);
+
+		String refererURI;
+		try {
+			refererURI = new URI(req.getHeader("referer")).getPath();
+
+			if (js.getInt("cod") == 101) {
+				url = "/eRelation/" + urlSuccess + "?e=" + js.getInt("cod");
+			} else {
+				url = refererURI + "?e=" + js.getInt("cod");
+			}
+			resp.sendRedirect(url);
+		} catch (URISyntaxException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
+}
